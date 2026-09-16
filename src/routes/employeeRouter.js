@@ -9,6 +9,6 @@ const router = express.Router();
 import verifyToken from '../middleware/verifytoken.js';
 
 router.post("/create", createEmployee);
-router.get("/all", getEmployees);
+router.get("/all",verifyToken, getEmployees);
 
 export default router;
