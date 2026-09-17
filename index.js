@@ -25,9 +25,7 @@
 //     console.log('Error received = ' + err);
 //   });
 
-// app.listen(PORT, () => {
-//     console.log(`Server started on port ${PORT}`);
-// })
+
 
 
 import dotenv from "dotenv";
@@ -63,6 +61,11 @@ mongoose.connect(mongooseString)
     console.log("Database connection error:", err);
   });
 
+/* const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
+}) */
+
 // Test API
 app.get("/", (req, res) => {
   res.json({
@@ -72,4 +75,14 @@ app.get("/", (req, res) => {
 });
 
 // Lambda handler
-export const handler = serverless(app);
+const serverlessHandler = serverless(app, {
+  binary: [
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/octet-stream"
+  ]
+});
+
+export const handler = async (event, context) => {
+  return await serverlessHandler(event, context);
+};
