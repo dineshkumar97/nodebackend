@@ -1,13 +1,13 @@
 import EmployeeList from "../models/employeeModels.js";
-import ExcelJS from "exceljs";
-import PDFDocument from "pdfkit";
+import { createExcelFile } from "../utils/excelExport.js";
+import { exportPDF } from "../utils/pdfExport.js";
 
 export const createEmployee = async (req, res) => {
     try {
         const { name, email, phone, dob, department } = req.body;
         const existingUser = await EmployeeList.findOne({ email });
         if (!existingUser) {
-            const employees = new EmployeeList({ name, email, phone, dob, department,isActive: true });
+            const employees = new EmployeeList({ name, email, phone, dob, department, isActive: true });
             await employees.save();
             return res.status(201).json({ message: 'Employee Created' });
         }
@@ -23,8 +23,8 @@ export const createEmployee = async (req, res) => {
 
 export const updateEmployee = async (req, res) => {
     try {
-        const { name, email, phone, dob, department,isActive } = req.body
-        const user = await EmployeeList.findByIdAndUpdate(req.params.idUser, { name, email, phone, dob, department ,isActive});
+        const { name, email, phone, dob, department, isActive } = req.body
+        const user = await EmployeeList.findByIdAndUpdate(req.params.idUser, { name, email, phone, dob, department, isActive });
         await user.save();
         return res.status(201).json({ message: 'Employee list updated' });
     } catch (error) {
@@ -92,11 +92,11 @@ export const searchEmployees = async (req, res) => {
             filter.isActive = isActive;
         }
         const employees = await EmployeeList.find(filter);
-         return res.status(200).json({
+        return res.status(200).json({
             message: 'Success',
             data: employees
         });
-       
+
     } catch (error) {
         console.error(error);
 
@@ -117,6 +117,10 @@ export const exportEmployeesExcel = async (req, res) => {
             department,
             isActive
         } = req.body;
+
+        // =========================
+        // FILTER
+        // =========================
 
         const filter = {};
 
@@ -145,17 +149,20 @@ export const exportEmployeesExcel = async (req, res) => {
             filter.isActive = isActive;
         }
 
+        // =========================
+        // GET DATA
+        // =========================
+
         const employees = await EmployeeList
             .find(filter)
             .sort({ createdAt: -1 })
             .lean();
 
-        const workbook = new ExcelJS.Workbook();
+        // =========================
+        // COLUMNS
+        // =========================
 
-        const worksheet =
-            workbook.addWorksheet("Employees");
-
-        worksheet.columns = [
+        const columns = [
             {
                 header: "S.No",
                 key: "sno",
@@ -188,27 +195,51 @@ export const exportEmployeesExcel = async (req, res) => {
             }
         ];
 
-        employees.forEach((employee, index) => {
+        // =========================
+        // ROWS
+        // =========================
 
-            worksheet.addRow({
-                sno: index + 1,
-                name: employee.name || "",
-                email: employee.email || "",
-                department: employee.department || "",
-                phone: employee.phone || "",
-                status: employee.isActive
-                    ? "Active"
-                    : "Inactive"
-            });
+        const rows = employees.map((employee, index) => [
+
+            index + 1,
+
+            employee.name || "",
+
+            employee.email || "",
+
+            employee.department || "",
+
+            employee.phone || "",
+
+            employee.isActive
+                ? "Active"
+                : "Inactive"
+
+        ]);
+
+        // =========================
+        // CREATE EXCEL
+        // =========================
+
+        const workbook = await createExcelFile({
+
+            sheetName: "Employees",
+
+            title: "Employee List",
+
+            columns,
+
+            rows,
+
+            generatedBy: "Dinesh Kumar"
 
         });
 
-        worksheet.getRow(1).font = {
-            bold: true
-        };
+        // =========================
+        // DOWNLOAD
+        // =========================
 
-        const buffer =
-            await workbook.xlsx.writeBuffer();
+        const buffer = await workbook.xlsx.writeBuffer();
 
         res.setHeader(
             "Content-Type",
@@ -220,9 +251,7 @@ export const exportEmployeesExcel = async (req, res) => {
             'attachment; filename="Employee_List.xlsx"'
         );
 
-        return res.status(200).send(
-            Buffer.from(buffer)
-        );
+        return res.status(200).send(Buffer.from(buffer));
 
     } catch (error) {
 
@@ -235,7 +264,6 @@ export const exportEmployeesExcel = async (req, res) => {
     }
 };
 
-
 export const exportEmployeesPDF = async (req, res) => {
 
     try {
@@ -247,146 +275,134 @@ export const exportEmployeesPDF = async (req, res) => {
             isActive
         } = req.body;
 
+        // =========================
+        // FILTER
+        // =========================
+
         const filter = {};
 
-        if (name) {
+        if (name?.trim()) {
             filter.name = {
                 $regex: name.trim(),
                 $options: "i"
             };
         }
 
-        if (email) {
+        if (email?.trim()) {
             filter.email = {
                 $regex: email.trim(),
                 $options: "i"
             };
         }
 
-        if (department) {
+        if (department?.trim()) {
             filter.department = {
                 $regex: department.trim(),
                 $options: "i"
             };
         }
 
-        if (isActive !== null && isActive !== undefined) {
+        if (
+            isActive !== null &&
+            isActive !== undefined
+        ) {
             filter.isActive = isActive;
         }
 
+        // =========================
+        // GET EMPLOYEES
+        // =========================
+
         const employees = await EmployeeList
             .find(filter)
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
-        const doc = new PDFDocument({
-            size: "A4",
-            layout: "landscape",
-            margin: 30
-        });
+        // =========================
+        // PDF HEADERS
+        // =========================
 
-        res.setHeader(
-            "Content-Type",
-            "application/pdf"
-        );
+        const headers = [
+            "S.No",
+            "Employee Name",
+            "Email",
+            "Department",
+            "Phone",
+            "Status"
+        ];
 
-        res.setHeader(
-            "Content-Disposition",
-            'attachment; filename="Employee_List.pdf"'
-        );
+        // =========================
+        // COLUMN WIDTHS
+        // =========================
 
-        doc.pipe(res);
+        const columnWidths = [
+            40,
+            145,
+            210,
+            145,
+            120,
+            95
+        ];
 
-        // Title
-        doc
-            .fontSize(18)
-            .text("Employee List", {
-                align: "center"
-            });
+        // =========================
+        // PDF ROWS
+        // =========================
 
-        doc.moveDown();
+        const rows = employees.map(
+            (employee, index) => [
 
-        // Table header
-        let y = 80;
+                index + 1,
 
-        doc.fontSize(10);
+                employee.name || "-",
 
-        doc.text("S.No", 30, y);
-        doc.text("Name", 60, y);
-        doc.text("Email", 180, y);
-        doc.text("Department", 350, y);
-        doc.text("Phone", 440, y);
-        doc.text("Status", 520, y);
+                employee.email || "-",
 
-        y += 20;
+                employee.department || "-",
 
-        employees.forEach((employee, index) => {
+                employee.phone || "-",
 
-            doc.text(
-                String(index + 1),
-                30,
-                y
-            );
-
-            doc.text(
-                employee.name || "",
-                60,
-                y,
-                {
-                    width: 110
-                }
-            );
-
-            doc.text(
-                employee.email || "",
-                180,
-                y,
-                {
-                    width: 160
-                }
-            );
-
-            doc.text(
-                employee.department || "",
-                350,
-                y,
-                {
-                    width: 80
-                }
-            );
-
-            doc.text(
-                employee.phone || "",
-                440,
-                y
-            );
-
-            doc.text(
                 employee.isActive
                     ? "Active"
-                    : "Inactive",
-                520,
-                y
-            );
+                    : "Inactive"
 
-            y += 20;
+            ]
+        );
 
-            // New page
-            if (y > 550) {
-                doc.addPage();
-                y = 50;
-            }
+        // =========================
+        // COMMON PDF EXPORT
+        // =========================
+
+        return exportPDF({
+
+            res,
+
+            title: "Employee List",
+
+            fileName: "Employee_List.pdf",
+
+            headers,
+
+            columnWidths,
+
+            rows,
+
+            generatedBy: "Dinesh Kumar"
 
         });
-
-        doc.end();
 
     } catch (error) {
 
-        console.error("PDF export error:", error);
+        console.error(
+            "PDF export error:",
+            error
+        );
 
-        res.status(500).json({
-            success: false,
-            message: "Failed to export employees"
-        });
+        if (!res.headersSent) {
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to export employees"
+            });
+        }
     }
 };
