@@ -74,3 +74,34 @@ export const toggleEmployeeStatus = async (req, res) => {
     }
 };
 
+export const searchEmployees = async (req, res) => {
+    try {
+        const { name, email, department, isActive } = req.body;
+        let filter = {};
+        if (name) {
+            filter.name = { $regex: name, $options: "i" };
+        }
+        if (email) {
+            filter.email = { $regex: email, $options: "i" };
+        }
+        if (department) {
+            filter.department = { $regex: department, $options: "i" };
+        }
+        if (isActive !== undefined && isActive !== null) {
+            filter.isActive = isActive;
+        }
+        const employees = await EmployeeList.find(filter);
+         return res.status(200).json({
+            message: 'Success',
+            data: employees
+        });
+       
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to search employees"
+        });
+    }
+};

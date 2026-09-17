@@ -4,7 +4,8 @@ import {
     createEmployee,
     getEmployees,
     updateEmployee,
-    toggleEmployeeStatus
+    toggleEmployeeStatus,
+    searchEmployees
 } from "../controllers/employeeController.js";
 
 const router = express.Router();
@@ -14,6 +15,7 @@ router.post("/create", createEmployee);
 router.get("/all",verifyToken, getEmployees);
 router.put('/update/:idUser', updateEmployee);
 router.put('/status/:idUser',toggleEmployeeStatus);
+router.post('/search',searchEmployees);
 
 
 export default router;
