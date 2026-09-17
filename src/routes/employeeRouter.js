@@ -4,7 +4,10 @@ import {
     createEmployee,
     getEmployees,
     updateEmployee,
-    toggleEmployeeStatus
+    toggleEmployeeStatus,
+    searchEmployees,
+    exportEmployeesExcel,
+    exportEmployeesPDF
 } from "../controllers/employeeController.js";
 
 const router = express.Router();
@@ -14,6 +17,9 @@ router.post("/create", createEmployee);
 router.get("/all",verifyToken, getEmployees);
 router.put('/update/:idUser', updateEmployee);
 router.put('/status/:idUser',toggleEmployeeStatus);
+router.post('/search',searchEmployees);
+router.post("/export/excel",exportEmployeesExcel);
+router.post("/export/pdf",exportEmployeesPDF);
 
 
 export default router;
