@@ -120,21 +120,21 @@ export const exportEmployeesExcel = async (req, res) => {
 
         const filter = {};
 
-        if (name) {
+        if (name?.trim()) {
             filter.name = {
                 $regex: name.trim(),
                 $options: "i"
             };
         }
 
-        if (email) {
+        if (email?.trim()) {
             filter.email = {
                 $regex: email.trim(),
                 $options: "i"
             };
         }
 
-        if (department) {
+        if (department?.trim()) {
             filter.department = {
                 $regex: department.trim(),
                 $options: "i"
@@ -147,11 +147,13 @@ export const exportEmployeesExcel = async (req, res) => {
 
         const employees = await EmployeeList
             .find(filter)
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .lean();
 
         const workbook = new ExcelJS.Workbook();
 
-        const worksheet = workbook.addWorksheet("Employees");
+        const worksheet =
+            workbook.addWorksheet("Employees");
 
         worksheet.columns = [
             {
@@ -183,11 +185,6 @@ export const exportEmployeesExcel = async (req, res) => {
                 header: "Status",
                 key: "status",
                 width: 15
-            },
-            {
-                header: "Created At",
-                key: "createdAt",
-                width: 20
             }
         ];
 
@@ -195,26 +192,23 @@ export const exportEmployeesExcel = async (req, res) => {
 
             worksheet.addRow({
                 sno: index + 1,
-                name: employee.name,
-                email: employee.email,
-                department: employee.department,
-                phone: employee.phone,
+                name: employee.name || "",
+                email: employee.email || "",
+                department: employee.department || "",
+                phone: employee.phone || "",
                 status: employee.isActive
                     ? "Active"
-                    : "Inactive",
-                createdAt: employee.createdAt
+                    : "Inactive"
             });
 
         });
 
-        // Header style
         worksheet.getRow(1).font = {
             bold: true
         };
 
-        worksheet.getRow(1).alignment = {
-            vertical: "middle"
-        };
+        const buffer =
+            await workbook.xlsx.writeBuffer();
 
         res.setHeader(
             "Content-Type",
@@ -226,17 +220,17 @@ export const exportEmployeesExcel = async (req, res) => {
             'attachment; filename="Employee_List.xlsx"'
         );
 
-        await workbook.xlsx.write(res);
-
-        res.end();
+        return res.status(200).send(
+            Buffer.from(buffer)
+        );
 
     } catch (error) {
 
-        console.error("Excel export error:", error);
+        console.error("Excel error:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: "Failed to export employees"
+            message: "Excel export failed"
         });
     }
 };
