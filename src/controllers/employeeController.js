@@ -1,5 +1,6 @@
 import EmployeeList from "../models/employeeModels.js";
-
+import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
 
 export const createEmployee = async (req, res) => {
     try {
@@ -102,6 +103,296 @@ export const searchEmployees = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to search employees"
+        });
+    }
+};
+
+export const exportEmployeesExcel = async (req, res) => {
+
+    try {
+
+        const {
+            name,
+            email,
+            department,
+            isActive
+        } = req.body;
+
+        const filter = {};
+
+        if (name) {
+            filter.name = {
+                $regex: name.trim(),
+                $options: "i"
+            };
+        }
+
+        if (email) {
+            filter.email = {
+                $regex: email.trim(),
+                $options: "i"
+            };
+        }
+
+        if (department) {
+            filter.department = {
+                $regex: department.trim(),
+                $options: "i"
+            };
+        }
+
+        if (isActive !== null && isActive !== undefined) {
+            filter.isActive = isActive;
+        }
+
+        const employees = await EmployeeList
+            .find(filter)
+            .sort({ createdAt: -1 });
+
+        const workbook = new ExcelJS.Workbook();
+
+        const worksheet = workbook.addWorksheet("Employees");
+
+        worksheet.columns = [
+            {
+                header: "S.No",
+                key: "sno",
+                width: 8
+            },
+            {
+                header: "Employee Name",
+                key: "name",
+                width: 25
+            },
+            {
+                header: "Email",
+                key: "email",
+                width: 30
+            },
+            {
+                header: "Department",
+                key: "department",
+                width: 20
+            },
+            {
+                header: "Phone",
+                key: "phone",
+                width: 18
+            },
+            {
+                header: "Status",
+                key: "status",
+                width: 15
+            },
+            {
+                header: "Created At",
+                key: "createdAt",
+                width: 20
+            }
+        ];
+
+        employees.forEach((employee, index) => {
+
+            worksheet.addRow({
+                sno: index + 1,
+                name: employee.name,
+                email: employee.email,
+                department: employee.department,
+                phone: employee.phone,
+                status: employee.isActive
+                    ? "Active"
+                    : "Inactive",
+                createdAt: employee.createdAt
+            });
+
+        });
+
+        // Header style
+        worksheet.getRow(1).font = {
+            bold: true
+        };
+
+        worksheet.getRow(1).alignment = {
+            vertical: "middle"
+        };
+
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+
+        res.setHeader(
+            "Content-Disposition",
+            'attachment; filename="Employee_List.xlsx"'
+        );
+
+        await workbook.xlsx.write(res);
+
+        res.end();
+
+    } catch (error) {
+
+        console.error("Excel export error:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to export employees"
+        });
+    }
+};
+
+
+export const exportEmployeesPDF = async (req, res) => {
+
+    try {
+
+        const {
+            name,
+            email,
+            department,
+            isActive
+        } = req.body;
+
+        const filter = {};
+
+        if (name) {
+            filter.name = {
+                $regex: name.trim(),
+                $options: "i"
+            };
+        }
+
+        if (email) {
+            filter.email = {
+                $regex: email.trim(),
+                $options: "i"
+            };
+        }
+
+        if (department) {
+            filter.department = {
+                $regex: department.trim(),
+                $options: "i"
+            };
+        }
+
+        if (isActive !== null && isActive !== undefined) {
+            filter.isActive = isActive;
+        }
+
+        const employees = await EmployeeList
+            .find(filter)
+            .sort({ createdAt: -1 });
+
+        const doc = new PDFDocument({
+            size: "A4",
+            layout: "landscape",
+            margin: 30
+        });
+
+        res.setHeader(
+            "Content-Type",
+            "application/pdf"
+        );
+
+        res.setHeader(
+            "Content-Disposition",
+            'attachment; filename="Employee_List.pdf"'
+        );
+
+        doc.pipe(res);
+
+        // Title
+        doc
+            .fontSize(18)
+            .text("Employee List", {
+                align: "center"
+            });
+
+        doc.moveDown();
+
+        // Table header
+        let y = 80;
+
+        doc.fontSize(10);
+
+        doc.text("S.No", 30, y);
+        doc.text("Name", 60, y);
+        doc.text("Email", 180, y);
+        doc.text("Department", 350, y);
+        doc.text("Phone", 440, y);
+        doc.text("Status", 520, y);
+
+        y += 20;
+
+        employees.forEach((employee, index) => {
+
+            doc.text(
+                String(index + 1),
+                30,
+                y
+            );
+
+            doc.text(
+                employee.name || "",
+                60,
+                y,
+                {
+                    width: 110
+                }
+            );
+
+            doc.text(
+                employee.email || "",
+                180,
+                y,
+                {
+                    width: 160
+                }
+            );
+
+            doc.text(
+                employee.department || "",
+                350,
+                y,
+                {
+                    width: 80
+                }
+            );
+
+            doc.text(
+                employee.phone || "",
+                440,
+                y
+            );
+
+            doc.text(
+                employee.isActive
+                    ? "Active"
+                    : "Inactive",
+                520,
+                y
+            );
+
+            y += 20;
+
+            // New page
+            if (y > 550) {
+                doc.addPage();
+                y = 50;
+            }
+
+        });
+
+        doc.end();
+
+    } catch (error) {
+
+        console.error("PDF export error:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to export employees"
         });
     }
 };
