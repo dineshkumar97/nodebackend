@@ -3,8 +3,8 @@ import DepartmentList from "../models/departmentModels.js";
 export const createDepartment = async (req, res) => {
     try {
         const { name } = req.body;
-        const existingUser = await DepartmentList.findOne({ name });
-        if (!existingUser) {
+        const existingDepartment = await DepartmentList.findOne({ name });
+        if (!existingDepartment) {
             const department = new DepartmentList({ name,isActive: true });
             await department.save();
             return res.status(201).json({ message: 'Department Created' });
@@ -22,8 +22,8 @@ export const createDepartment = async (req, res) => {
 export const updateDepartment = async (req, res) => {
     try {
         const { name, isActive } = req.body
-        const user = await DepartmentList.findByIdAndUpdate(req.params.idUser, { name, isActive });
-        await user.save();
+        const department = await DepartmentList.findByIdAndUpdate(req.params.idDepartment, { name, isActive });
+        await department.save();
         return res.status(201).json({ message: 'Department list updated' });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -35,9 +35,9 @@ export const updateDepartment = async (req, res) => {
 
 export const getDepartments = async (req, res) => {
     try {
-        const users = await DepartmentList.find();
+        const department = await DepartmentList.find();
 
-        res.status(200).json(users);
+        res.status(200).json(department);
 
     } catch (error) {
         console.error(error);
@@ -50,8 +50,8 @@ export const getDepartments = async (req, res) => {
 
 export const toggleDepartmentStatus = async (req, res) => {
     try {
-        const { idUser } = req.params;
-        const department = await DepartmentList.findById(idUser);
+        const { idDepartment } = req.params;
+        const department = await DepartmentList.findById(idDepartment);
         if (!department) {
             return res.status(404).json({
                 message: 'Department not found'
@@ -76,9 +76,9 @@ export const toggleDepartmentStatus = async (req, res) => {
 
 export const deleteDepartment = async (req, res) => {
     try {
-        const { idUser } = req.params;
+        const { idDepartment } = req.params;
 
-        const department = await DepartmentList.findByIdAndDelete(idUser);
+        const department = await DepartmentList.findByIdAndDelete(idDepartment);
 
         if (!department) {
             return res.status(404).json({

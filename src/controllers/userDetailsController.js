@@ -10,7 +10,7 @@ export const createUser = async (req, res) => {
             const hashedPassword = await bcrypt.hash(password, 10);
             const newUser = new UserDetails({ name, email, phone, password: hashedPassword });
             await newUser.save();
-            return res.status(201).json({ message: 'User Created' });
+            return res.status(201).json({ message: 'Signup successfully' });
         }
         res.status(409).json({ message: 'User Already Exists' });
 
