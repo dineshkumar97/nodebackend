@@ -1,25 +1,71 @@
 import EmployeeList from "../models/employeeModels.js";
 import { createExcelFile } from "../utils/excelExport.js";
 import { exportPDF } from "../utils/pdfExport.js";
-
+import { sendEmployeeCreatedEmail } from "../services/emailService.js";
 export const createEmployee = async (req, res) => {
     try {
-        const { name, email, phone, dob, department } = req.body;
+        const {
+            name,
+            email,
+            phone,
+            dob,
+            department
+        } = req.body;
+
         const existingUser = await EmployeeList.findOne({ email });
-        if (!existingUser) {
-            const employees = new EmployeeList({ name, email, phone, dob, department, isActive: true });
-            await employees.save();
-            return res.status(201).json({ message: 'Employee Created' });
+        if (existingUser) {
+            return res.status(409).json({
+                message: "Employee Already Exists"
+            });
         }
-        res.status(409).json({ message: 'Employee Already Exists' });
+        // Get last employee
+        const lastEmployee = await EmployeeList
+            .findOne()
+            .sort({ createdAt: -1 });
+
+        // Generate employee ID
+        let employeeId = "EMP000001";
+
+        if (lastEmployee?.employeeId) {
+            const lastNumber = parseInt(
+                lastEmployee.employeeId.replace("EMP", ""),
+                10
+            );
+            employeeId = `EMP${String(lastNumber + 1).padStart(6, "0")}`;
+        }
+
+        const employee = new EmployeeList({
+            employeeId,
+            name,
+            email,
+            phone,
+            dob,
+            department,
+            isActive: true
+        });
+
+        await employee.save();
+        await sendEmployeeCreatedEmail(employee);
+        return res.status(201).json({
+            message: "Employee Created",
+            data: {
+                employeeId: employee.employeeId,
+                name: employee.name,
+                email: employee.email
+            }
+        });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
+        console.error("Create Employee Error:", error);
+
+        return res.status(500).json({
             message: error.message
         });
     }
 };
+
+
+
 
 export const updateEmployee = async (req, res) => {
     try {
@@ -404,5 +450,33 @@ export const exportEmployeesPDF = async (req, res) => {
                 message: "Failed to export employees"
             });
         }
+    }
+};
+
+
+
+export const employeeDelete = async (req, res) => {
+    try {
+        const { idUser } = req.params;
+
+        const department = await EmployeeList.findByIdAndDelete(idUser);
+
+        if (!department) {
+            return res.status(404).json({
+                message: 'Department not found'
+            });
+        }
+
+        return res.status(200).json({
+            message: 'Department deleted successfully',
+            data: department
+        });
+
+    } catch (error) {
+        console.error('Delete Department error:', error);
+
+        return res.status(500).json({
+            message: 'Failed to delete department'
+        });
     }
 };
