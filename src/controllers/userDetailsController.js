@@ -1,6 +1,7 @@
 import UserDetails from "../models/userDetailsModel.js";
 import bcrypt from 'bcryptjs';
 import generationToken from "../tokengeneration/generationToken.js";
+import { sendSignupCreatedEmail } from "../services/emailService.js";
 
 export const createUser = async (req, res) => {
     try {
@@ -10,6 +11,7 @@ export const createUser = async (req, res) => {
             const hashedPassword = await bcrypt.hash(password, 10);
             const newUser = new UserDetails({ name, email, phone, password: hashedPassword });
             await newUser.save();
+            await sendSignupCreatedEmail(newUser);
             return res.status(201).json({ message: 'Signup successfully' });
         }
         res.status(409).json({ message: 'User Already Exists' });
@@ -102,6 +104,32 @@ export const authenticate = async (req, res) => {
     }
 };
 
+
+export const userDelete = async (req, res) => {
+    try {
+        const { idUser } = req.params;
+
+        const user = await UserDetails.findByIdAndDelete(idUser);
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'user not found'
+            });
+        }
+
+        return res.status(200).json({
+            message: 'user deleted successfully',
+            data: user
+        });
+
+    } catch (error) {
+        console.error('Delete user error:', error);
+
+        return res.status(500).json({
+            message: 'Failed to delete department'
+        });
+    }
+};
 
 
 // | Situation                         |                      Status |

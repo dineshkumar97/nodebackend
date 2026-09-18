@@ -17,7 +17,7 @@ const transporter = nodemailer.createTransport({
     }
 });
 
-
+// Employee Create
 export const sendEmployeeCreatedEmail = async ({
     name,
     employeeId,
@@ -43,7 +43,8 @@ export const sendEmployeeCreatedEmail = async ({
         .replaceAll("{{joiningDate}}", formattedDate);
     await transporter.sendMail({
         from: `"HR Team" <${process.env.EMAIL_USER}>`,
-        to: 'dineshkumarppn07@gmail.com',
+        // to: 'dineshkumarppn07@gmail.com',
+        to: email,
         subject: "Employee Account Created",
         html
     }).then(() => {
@@ -55,7 +56,7 @@ export const sendEmployeeCreatedEmail = async ({
 
 };
 
-
+// Forgot Reset
 export const sendForgotPasswordEmail = async (employee, resetToken) => {
 
     const templatePath = path.join(
@@ -66,16 +67,47 @@ export const sendForgotPasswordEmail = async (employee, resetToken) => {
     let html = await fs.readFile(templatePath, "utf-8");
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-
+    console.log('resl', resetLink)
     html = html
         .replaceAll("{{name}}", employee.name)
         .replaceAll("{{resetLink}}", resetLink);
 
     await transporter.sendMail({
         from: `"HR Team" <${process.env.EMAIL_USER}>`,
-        // to: employee.email,
-       to: 'dineshkumarppn07@gmail.com',
+        to: employee.email,
+        //    to: 'dineshkumarppn07@gmail.com',
         subject: "Reset Your Password",
         html
     });
+};
+
+
+// Signup Template
+
+export const sendSignupCreatedEmail = async ({ name, email }) => {
+    const templatePath = path.join(
+        __dirname,
+        "../templates/emails/signup.html"
+    );
+
+    let html = await fs.readFile(templatePath, "utf-8");
+    const loginLink = `${process.env.FRONTEND_URL}/login`;
+
+    // Replace dynamic values
+    html = html
+        .replaceAll("{{name}}", name)
+        .replaceAll("{{email}}", email)
+        .replaceAll("{{loginLink}}", loginLink);
+    await transporter.sendMail({
+        from: `"HR Team" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: "Welcome! Your Account Has Been Created",
+        html
+    }).then(() => {
+        console.log('Account created email sent successfully');
+    })
+        .catch((error) => {
+            console.error('Account email failed:', error);
+        });
+
 };
