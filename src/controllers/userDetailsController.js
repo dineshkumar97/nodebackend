@@ -1,7 +1,12 @@
-import UserDetails from "../models/userDetailsModel.js";
 import bcrypt from 'bcryptjs';
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { s3Client } from '../config/s3.js';
+import UserDetails from "../models/userDetailsModel.js";
 import generationToken from "../tokengeneration/generationToken.js";
 import { sendSignupCreatedEmail } from "../services/emailService.js";
+
 
 export const createUser = async (req, res) => {
     try {
@@ -91,15 +96,23 @@ export const authenticate = async (req, res) => {
         }
         // 5. Login successful
         const token = generationToken(user);
+        const userDetails = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone
+
+        }
         return res.status(200).json({
             message: "Login successful",
-            token: token
+            token: token,
+            data: userDetails
         });
 
     } catch (error) {
         console.error("Authentication error:", error);
         return res.status(500).json({
-            message:  error.message
+            message: error.message
         });
     }
 };
@@ -127,6 +140,172 @@ export const userDelete = async (req, res) => {
 
         return res.status(500).json({
             message: 'Failed to delete department'
+        });
+    }
+};
+
+export const updateUsers = async (req, res) => {
+    try {
+        const { name, email, phone } = req.body;
+
+        const updateData = {
+            name,
+            email,
+            phone
+        };
+
+        // Upload profile image to S3
+        if (req.file) {
+
+            const fileName = `uploadImages/${Date.now()}-${req.file.originalname}`;
+
+            const command = new PutObjectCommand({
+                Bucket: process.env.S3_BUCKET_NAME,
+                Key: fileName,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype
+            });
+
+            await s3Client.send(command);
+
+            // Store only S3 key in MongoDB
+            updateData.profileImage = fileName;
+        }
+
+        const user = await UserDetails.findByIdAndUpdate(
+            req.params.idUser,
+            updateData,
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'User not found'
+            });
+        }
+
+        return res.status(200).json({
+            message: 'Profile has been updated successfully.',
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                profileImage: user.profileImage || ''
+            }
+        });
+
+    } catch (error) {
+
+        console.error('Update user error:', error);
+
+        return res.status(500).json({
+            message: 'Something went wrong',
+            error: error.message
+        });
+    }
+};
+// export const updateUsers = async (req, res) => {
+//     try {
+//         const { name, email, phone } = req.body;
+//         const updateData = {
+//             name,
+//             email,
+//             phone
+//         };
+//         // If image is uploaded
+//         if (req.file) {
+//             updateData.profileImage = req.file.originalname;
+//         }
+//         const user = await UserDetails.findByIdAndUpdate(
+//             req.params.idUser,
+//             updateData,
+//             {
+//                 new: true,
+//                 runValidators: true
+//             }
+//         );
+//         if (!user) {
+//             return res.status(404).json({
+//                 message: 'User not found'
+//             });
+//         }
+//         const userDetails = {
+//             _id: user._id,
+//             name: user.name,
+//             email: user.email,
+//             phone: user.phone,
+//             profileImage: user.profileImage
+//         };
+//         return res.status(200).json({
+//             message: 'Profile has been updated successfully.',
+//             data: userDetails
+//         });
+//     } catch (error) {
+//         console.error(error);
+//         return res.status(500).json({
+//             message: error.message,
+//             error: error.message
+//         });
+//     }
+// };
+
+
+
+export const getProfile = async (req, res) => {
+    try {
+
+        const user = await UserDetails.findById(req.params.idUser);
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'User not found'
+            });
+        }
+
+        // Generate S3 URL
+        let profileImage = '';
+
+        if (user.profileImage) {
+
+            const command = new GetObjectCommand({
+                Bucket: process.env.S3_BUCKET_NAME,
+                Key: user.profileImage
+            });
+
+            profileImage = await getSignedUrl(
+                s3Client,
+                command,
+                {
+                    expiresIn: 3600
+                }
+            );
+        }
+
+        return res.status(200).json({
+            message: 'Profile fetched successfully',
+
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+
+                // IMPORTANT
+                profileImage: profileImage
+            }
+        });
+
+    } catch (error) {
+
+        console.error('Get profile error:', error);
+
+        return res.status(500).json({
+            message: 'Something went wrong',
+            error: error.message
         });
     }
 };

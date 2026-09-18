@@ -29,6 +29,10 @@ const userDetailsSchema = new mongoose.Schema(
         resetPasswordExpires: {
             type: Date,
             default: null
+        },
+        profileImage: {
+            type: String,
+            default: ''
         }
     },
     {
