@@ -91,15 +91,23 @@ export const authenticate = async (req, res) => {
         }
         // 5. Login successful
         const token = generationToken(user);
+        const userDetails = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone:user.phone
+
+        }
         return res.status(200).json({
             message: "Login successful",
-            token: token
+            token: token,
+            data: userDetails
         });
 
     } catch (error) {
         console.error("Authentication error:", error);
         return res.status(500).json({
-            message:  error.message
+            message: error.message
         });
     }
 };
@@ -127,6 +135,50 @@ export const userDelete = async (req, res) => {
 
         return res.status(500).json({
             message: 'Failed to delete department'
+        });
+    }
+};
+
+
+export const updateUsers = async (req, res) => {
+    try {
+
+        const { name, email, phone } = req.body;
+
+        const user = await UserDetails.findByIdAndUpdate(
+            req.params.idUser,
+            { name, email, phone },
+            {
+                new: true,
+                runValidators: true
+            }
+        );
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'User not found'
+            });
+        }
+
+        const userDetails = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone
+        };
+
+        return res.status(200).json({
+            message: 'Profile has been updated successfully.',
+            data: userDetails
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+            message: 'Something went wrong',
+            error: error.message
         });
     }
 };
